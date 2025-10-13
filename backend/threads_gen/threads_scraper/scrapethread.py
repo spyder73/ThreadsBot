@@ -4,7 +4,7 @@ from typing import Dict
 import jmespath
 from parsel import Selector
 from nested_lookup import nested_lookup
-from playwright.sync_api import sync_playwright
+from playwright.async_api import async_playwright
 
 
 def parse_thread(data: Dict) -> Dict:
@@ -31,28 +31,31 @@ def parse_thread(data: Dict) -> Dict:
         data,
     )
     result["videos"] = list(set(result["videos"] or []))
-    #if result["reply_count"] and type(result["reply_count"]) != int:
-    #    result["reply_count"] = int(result["reply_count"].split(" ")[0])
+    if result["reply_count"] and type(result["reply_count"]) != int:
+        result["reply_count"] = int(result["reply_count"].split(" ")[0])
     result[
         "url"
     ] = f"https://www.threads.net/@{result['username']}/post/{result['code']}"
     return result
 
 
-def scrape_thread(url: str) -> dict:
+async def scrape_thread(url: str) -> dict:
     """Scrape Threads post and replies from a given URL"""
-    with sync_playwright() as pw:
+    async with async_playwright() as pw:
         # start Playwright browser
-        browser = pw.chromium.launch()
-        context = browser.new_context(viewport={"width": 1920, "height": 1080})
-        page = context.new_page()
+        browser = await pw.chromium.launch()
+        context = await browser.new_context(viewport={"width": 1920, "height": 1080})
+        page = await context.new_page()
 
         # go to url and wait for the page to load
-        page.goto(url)
+        await page.goto(url)
         # wait for page to finish loading
-        page.wait_for_selector("[data-pressable-container=true]")
+        await page.wait_for_selector("[data-pressable-container=true]")
         # find all hidden datasets
-        selector = Selector(page.content())
+        content = await page.content()
+        await browser.close()
+        
+        selector = Selector(content)
         hidden_datasets = selector.css('script[type="application/json"][data-sjs]::text').getall()
         # find datasets that contain threads data
         for hidden_dataset in hidden_datasets:
@@ -79,4 +82,6 @@ def scrape_thread(url: str) -> dict:
 
 
 if __name__ == "__main__":
-    print(scrape_thread("https://www.threads.com/@nerdypola/post/DPcPYe9isXe"))
+    import asyncio
+    result = asyncio.run(scrape_thread("https://www.threads.com/@hendrik.wuest/post/DPv2FiwCKyQ"))
+    print(result)

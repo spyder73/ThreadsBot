@@ -19,6 +19,7 @@ def create_app():
     from routes.generator import generator_bp
     from routes.monitor import monitor_bp
     from routes.executor import executor_bp
+    from routes.personality import personality_bp
     
     app.register_blueprint(upload_bp)
     app.register_blueprint(openrouter_bp, url_prefix='/ai')
@@ -27,6 +28,7 @@ def create_app():
     app.register_blueprint(generator_bp, url_prefix='/generator')
     app.register_blueprint(monitor_bp, url_prefix='/monitor')
     app.register_blueprint(executor_bp, url_prefix='/executor')
+    app.register_blueprint(personality_bp, url_prefix='/personality')
     
     @app.route("/")
     def home():

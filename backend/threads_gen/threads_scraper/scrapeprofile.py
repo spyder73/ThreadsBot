@@ -3,11 +3,11 @@ from typing import Dict
 
 import jmespath
 from parsel import Selector
-from playwright.sync_api import sync_playwright
+from playwright.async_api import async_playwright
 from nested_lookup import nested_lookup
 
-# Note: we'll also be using parse_thread function we wrote earlier:
-from scrapethread import parse_thread
+# Use relative import from same package
+from .scrapethread import parse_thread
 
 
 def parse_profile(data: Dict) -> Dict:
@@ -29,19 +29,21 @@ def parse_profile(data: Dict) -> Dict:
     return result
 
 
-
-def scrape_profile(url: str) -> dict:
+async def scrape_profile(url: str) -> dict:
     """Scrape Threads profile and their recent posts from a given URL"""
-    with sync_playwright() as pw:
+    async with async_playwright() as pw:
         # start Playwright browser
-        browser = pw.chromium.launch()
-        context = browser.new_context(viewport={"width": 1920, "height": 1080})
-        page = context.new_page()
+        browser = await pw.chromium.launch()
+        context = await browser.new_context(viewport={"width": 1920, "height": 1080})
+        page = await context.new_page()
 
-        page.goto(url)
+        await page.goto(url)
         # wait for page to finish loading
-        page.wait_for_selector("[data-pressable-container=true]")
-        selector = Selector(page.content())
+        await page.wait_for_selector("[data-pressable-container=true]")
+        content = await page.content()
+        await browser.close()
+        
+    selector = Selector(content)
     parsed = {
         "user": {},
         "threads": [],
@@ -68,6 +70,8 @@ def scrape_profile(url: str) -> dict:
             parsed['threads'].extend(threads)
     return parsed
 
+
 if __name__ == "__main__":
-    data = scrape_profile("https://www.threads.com/@simonsaysvote")
+    import asyncio
+    data = asyncio.run(scrape_profile("https://www.threads.com/@hendrik.wuest"))
     print(json.dumps(data, indent=2, ensure_ascii=False))
