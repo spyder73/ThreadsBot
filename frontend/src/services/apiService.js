@@ -67,6 +67,13 @@ export const monitorService = {
   forceCheck: () => post('/monitor/force-check'),
 };
 
+export const personalityService = {
+  createPersonality: (personalityData) => post('/personality/create', personalityData),
+  getPersonalities: () => get('/personality/list'),
+  getPersonality: (filename) => get(`/personality/${filename}`),
+  deletePersonality: (filename) => del(`/personality/${filename}`),
+};
+
 // Add the missing HTTP methods if they don't exist:
 const put = (endpoint, data = null, params = null) => 
   apiRequest('PUT', endpoint, data, {}, params);

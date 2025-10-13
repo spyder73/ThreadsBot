@@ -7,30 +7,26 @@ import UploadTester from './components/UploadTester';
 import Generator from './components/Generator';
 import ContentManager from './components/ContentManager';
 import MonitorDashboard from './components/MonitorDashboard';
+import PersonalityCreator from './components/PersonalityCreator';
 
 function App() {
   const [activeTab, setActiveTab] = useState('accounts');
 
   const tabs = [
     { id: 'accounts', label: 'Account Manager' },
-    { id: 'queue', label: 'Queue Manager' },
     { id: 'ai', label: 'AI Tester' },
-    { id: 'upload', label: 'Upload Tester' },
     { id: 'generator', label: 'Content Generator' },
     { id: 'content', label: 'Content Manager' },
-    { id: 'monitor', label: 'Monitor Dashboard' }
+    { id: 'monitor', label: 'Monitor Dashboard' },
+    { id: 'personality', label: 'Personality Creator' },
   ];
 
   const renderTabContent = () => {
     switch (activeTab) {
       case 'accounts':
         return <AccountManager />;
-      case 'queue':
-        return <QueueManager />;
       case 'ai':
         return <AITester />;
-      case 'upload':
-        return <UploadTester />;
       default:
         return <AccountManager />;
       case 'generator':
@@ -39,6 +35,8 @@ function App() {
         return <ContentManager />;
       case 'monitor':
         return <MonitorDashboard />;  
+      case 'personality':
+        return <PersonalityCreator />;
     }
   };
 

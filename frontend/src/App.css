@@ -1451,3 +1451,117 @@
   font-size: 12px;
   color: #6c757d;
 }
+
+
+.personality-creator {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+.personality-subtitle {
+  color: #666;
+  margin-bottom: 30px;
+  line-height: 1.5;
+}
+
+.personality-section {
+  background: #f8f9fa;
+  border-radius: 8px;
+  padding: 25px;
+  margin-bottom: 25px;
+}
+
+.personality-section h3 {
+  margin-top: 0;
+  margin-bottom: 20px;
+  color: #333;
+  font-size: 1.3em;
+  border-bottom: 2px solid #007bff;
+  padding-bottom: 10px;
+}
+
+.personality-form-grid {
+  display: grid;
+  gap: 20px;
+}
+
+.personality-form-field {
+  display: flex;
+  flex-direction: column;
+}
+
+.personality-form-field label {
+  font-weight: 600;
+  margin-bottom: 8px;
+  color: #444;
+  font-size: 0.95em;
+}
+
+.personality-form-field input,
+.personality-form-field textarea {
+  padding: 12px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 14px;
+  font-family: inherit;
+  transition: border-color 0.2s;
+}
+
+.personality-form-field input:focus,
+.personality-form-field textarea:focus {
+  outline: none;
+  border-color: #007bff;
+  box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+}
+
+.personality-form-field textarea {
+  resize: vertical;
+  min-height: 80px;
+}
+
+.personality-form-actions {
+  display: flex;
+  justify-content: center;
+  margin-top: 30px;
+}
+
+.personality-submit-btn {
+  background: #007bff;
+  color: white;
+  border: none;
+  padding: 15px 40px;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.personality-submit-btn:hover:not(:disabled) {
+  background: #0056b3;
+}
+
+.personality-submit-btn:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+}
+
+.personality-status-message {
+  margin-top: 20px;
+  padding: 15px;
+  border-radius: 6px;
+  text-align: center;
+  font-weight: 500;
+  background: #d4edda;
+  border: 1px solid #c3e6cb;
+  color: #155724;
+}
+
+.section-description {
+  color: #666;
+  font-size: 0.9em;
+  margin-top: -10px;
+  margin-bottom: 15px;
+  font-style: italic;
+}
