@@ -258,3 +258,67 @@ def delete_post(post_id):
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+def get_db_connection():
+    """Get database connection"""
+    db_path = os.path.join(os.path.dirname(__file__), '..', 'scheduler.db')
+    conn = sqlite3.connect(db_path)
+    conn.row_factory = sqlite3.Row
+    return conn
+
+@queue_bp.route('/posts', methods=['GET'])
+def get_posts():
+    """Get all posts with filtering"""
+    try:
+        status = request.args.get('status')
+        
+        conn = get_db_connection()
+        
+        if status:
+            posts = conn.execute(
+                'SELECT * FROM scheduled_posts WHERE status = ? ORDER BY created_at DESC',
+                (status,)
+            ).fetchall()
+        else:
+            posts = conn.execute(
+                'SELECT * FROM scheduled_posts ORDER BY created_at DESC'
+            ).fetchall()
+        
+        conn.close()
+        
+        # Convert to dict
+        posts_list = [dict(post) for post in posts]
+        
+        return jsonify({'posts': posts_list})
+    
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@queue_bp.route('/delete_all', methods=['DELETE'])
+def delete_all_posts():
+    """Delete all posts by status"""
+    try:
+        data = request.json
+        statuses = data.get('statuses', [])
+        
+        if not statuses:
+            return jsonify({'error': 'No statuses provided'}), 400
+        
+        conn = get_db_connection()
+        
+        deleted_count = 0
+        for status in statuses:
+            result = conn.execute('DELETE FROM posts WHERE status = ?', (status,))
+            deleted_count += result.rowcount
+        
+        conn.commit()
+        conn.close()
+        
+        return jsonify({
+            'success': True, 
+            'message': f'Deleted {deleted_count} posts',
+            'deleted_count': deleted_count
+        })
+    
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500

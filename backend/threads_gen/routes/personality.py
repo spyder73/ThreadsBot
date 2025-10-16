@@ -1,9 +1,9 @@
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, send_file
 from datetime import datetime
 import os
-from typing import List, Dict
 import re
 import asyncio
+import glob
 from threads_scraper.scrapeprofile import scrape_profile
 from threads_scraper.scrapethread import scrape_thread
 from utils.content_parser import parse_scraped_profile, parse_scraped_thread, format_content_for_context, analyze_engagement_patterns
@@ -241,3 +241,160 @@ def create_personality():
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+
+@personality_bp.route('/list', methods=['GET'])
+def list_personalities():
+    """List all available personality context files"""
+    try:
+        context_dir = os.path.join(os.path.dirname(__file__), '..', 'context')
+        
+        if not os.path.exists(context_dir):
+            return jsonify({'personalities': []})
+        
+        # Get all .txt files in context directory
+        pattern = os.path.join(context_dir, '*.txt')
+        files = glob.glob(pattern)
+        
+        personalities = []
+        for file_path in files:
+            filename = os.path.basename(file_path)
+            # Skip default system files
+            if filename in ['default.txt', 'enhance.txt']:
+                continue
+                
+            # Read first few lines to get name and creation date
+            try:
+                with open(file_path, 'r', encoding='utf-8') as f:
+                    content = f.read()
+                    lines = content.split('\n')
+                    
+                    name = 'Unknown'
+                    created = 'Unknown'
+                    
+                    for line in lines[:10]:  # Check first 10 lines
+                        if line.startswith('# AI Personality Context:'):
+                            name = line.replace('# AI Personality Context:', '').strip()
+                        elif line.startswith('# Created:'):
+                            created = line.replace('# Created:', '').strip()
+                    
+                    # Get file stats
+                    stat = os.stat(file_path)
+                    file_size = stat.st_size
+                    modified = datetime.fromtimestamp(stat.st_mtime).strftime('%Y-%m-%d %H:%M:%S')
+                    
+                    personalities.append({
+                        'filename': filename,
+                        'name': name,
+                        'created': created,
+                        'modified': modified,
+                        'size': file_size
+                    })
+                    
+            except Exception as e:
+                # If we can't read the file, still list it
+                personalities.append({
+                    'filename': filename,
+                    'name': filename.replace('.txt', '').replace('_', ' ').title(),
+                    'created': 'Unknown',
+                    'modified': 'Unknown',
+                    'size': 0
+                })
+        
+        # Sort by modified date (newest first)
+        personalities.sort(key=lambda x: x['modified'], reverse=True)
+        
+        return jsonify({'personalities': personalities})
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@personality_bp.route('/load/<filename>', methods=['GET'])
+def load_personality(filename):
+    """Load a personality context file and parse it back to form data"""
+    try:
+        context_dir = os.path.join(os.path.dirname(__file__), '..', 'context')
+        file_path = os.path.join(context_dir, filename)
+        
+        if not os.path.exists(file_path):
+            return jsonify({'error': 'File not found'}), 404
+        
+        with open(file_path, 'r', encoding='utf-8') as f:
+            content = f.read()
+        
+        # Parse the content back to form data structure
+        parsed_data = parse_personality_file(content)
+        
+        return jsonify({
+            'success': True,
+            'data': parsed_data,
+            'filename': filename
+        })
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+def parse_personality_file(content):
+    """Parse personality context file back to form data structure"""
+    data = {}
+    lines = content.split('\n')
+    
+    # Simple parsing - look for "field: value" patterns
+    for line in lines:
+        line = line.strip()
+        if ':' in line and not line.startswith('#') and not line.startswith('='):
+            # Split on first colon only
+            parts = line.split(':', 1)
+            if len(parts) == 2:
+                key = parts[0].strip()
+                value = parts[1].strip()
+                
+                # Map display names back to form field names
+                field_mapping = {
+                    'Name': 'name',
+                    'Age': 'age',
+                    'Location': 'location',
+                    'Occupation': 'occupation',
+                    'Background': 'background',
+                    'Personality Type': 'personality_type',
+                    'Tone': 'tone',
+                    'Humor Style': 'humor_style',
+                    'Formality Level': 'formality_level',
+                    'Writing Style': 'writing_style',
+                    'Vocabulary Level': 'vocabulary_level',
+                    'Sentence Structure': 'sentence_structure',
+                    'Emoji Usage': 'emoji_usage',
+                    'Slang Usage': 'slang_usage',
+                    'Main Topics': 'main_topics',
+                    'Expertise Areas': 'expertise_areas',
+                    'Hobbies': 'hobbies',
+                    'Passions': 'passions',
+                    'Core Values': 'core_values',
+                    'Political Stance': 'political_stance',
+                    'Causes Supported': 'causes_supported',
+                    'Controversial Topics Approach': 'controversial_topics',
+                    'Content Themes': 'content_themes',
+                    'Post Frequency': 'post_frequency',
+                    'Preferred Formats': 'preferred_formats',
+                    'Hashtag Style': 'hashtag_style',
+                    'Engagement Style': 'engagement_approach',
+                    'Controversy Level': 'controversy_level',
+                    'Authenticity Level': 'authenticity_level',
+                    'Example Posts': 'example_posts',
+                    'Example Responses': 'example_responses',
+                    'Favorite Phrases': 'favorite_phrases',
+                    'Words to Avoid': 'words_to_avoid',
+                    'Target Audience': 'target_audience',
+                    'Content Goals': 'content_goals',
+                    'Brand Alignment': 'brand_alignment',
+                    'Topics to Avoid': 'topics_to_avoid',
+                    'Language Restrictions': 'language_restrictions',
+                    'Brand Guidelines': 'brand_guidelines'
+                }
+                
+                if key in field_mapping and value != 'N/A':
+                    data[field_mapping[key]] = value
+    
+    return data

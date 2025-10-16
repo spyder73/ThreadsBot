@@ -49,10 +49,10 @@ if __name__ == "__main__":
     monitor = get_monitor()
     
     executor.start_executor()
-    monitor.start_monitoring()
+    #monitor.start_monitoring()
     
     print("✅ All services started!")
     print("✅ Post Executor: Running")
-    print("✅ Auto-Generation Monitor: Running")
+    #print("✅ Auto-Generation Monitor: Running")
     
     app.run(debug=True, host='0.0.0.0', port=8000)
