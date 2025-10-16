@@ -1,345 +1,249 @@
 import React, { useState, useEffect } from 'react';
-import { queueService, generatorService } from '../services/apiService';
-
-  // Add this helper function at the top of the file:
-const parsePlatforms = (platforms) => {
-    try {
-      if (typeof platforms === 'string') {
-        // Try to parse as JSON first
-        const parsed = JSON.parse(platforms);
-        return Array.isArray(parsed) ? parsed.join(', ') : platforms;
-      }
-      // If it's already an array
-      return Array.isArray(platforms) ? platforms.join(', ') : platforms;
-    } catch {
-      // If parsing fails, return as-is
-      return platforms;
-    }
-};
+import { queueService } from '../services/apiService';
+import '../ContentManager.css';
 
 const ContentManager = () => {
-  const [accounts, setAccounts] = useState([]);
-  const [selectedAccount, setSelectedAccount] = useState(null);
   const [posts, setPosts] = useState([]);
+  const [selectedStatus, setSelectedStatus] = useState('all');
+  const [selectedAccount, setSelectedAccount] = useState('all');
+  const [accounts, setAccounts] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [editingPost, setEditingPost] = useState(null);
-  const [filterStatus, setFilterStatus] = useState('all'); // all, scheduled, processing, uploaded
-  const [sortBy, setSortBy] = useState('scheduled_date'); // scheduled_date, created_at
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteStatuses, setDeleteStatuses] = useState([]);
+
+  const statusTypes = [
+    { key: 'all', label: 'All Posts', color: '#6b7280' },
+    { key: 'scheduled', label: 'Scheduled', color: '#3b82f6' },
+    { key: 'failed', label: 'Failed', color: '#ef4444' },
+    { key: 'uploaded', label: 'Uploaded', color: '#10b981' },
+    { key: 'pending', label: 'Pending', color: '#f59e0b' },
+    { key: 'processing', label: 'Processing', color: '#8b5cf6' }
+  ];
 
   useEffect(() => {
-    loadAccounts();
+    loadPosts();
   }, []);
 
-  useEffect(() => {
-    if (selectedAccount) {
-      loadPosts();
-    }
-  }, [selectedAccount, filterStatus, sortBy]);
-
-  const loadAccounts = async () => {
-    try {
-      const result = await queueService.getAccounts();
-      if (result.success) {
-        setAccounts(result.data.accounts);
-      }
-    } catch (error) {
-      console.error('Failed to load accounts:', error);
-    }
-  };
-
   const loadPosts = async () => {
-    if (!selectedAccount) return;
-    
-    setLoading(true);
     try {
-      const result = await queueService.getQueue(selectedAccount.username);
+      setLoading(true);
+      const result = await queueService.getAllPosts();
+      
       if (result.success) {
-        let filteredPosts = result.data.posts;
+        setPosts(result.data.posts || []);
         
-        // Filter by status
-        if (filterStatus !== 'all') {
-          filteredPosts = filteredPosts.filter(post => post.status === filterStatus);
-        }
-        
-        // Sort posts
-        filteredPosts.sort((a, b) => {
-          if (sortBy === 'scheduled_date') {
-            return new Date(a.scheduled_date) - new Date(b.scheduled_date);
-          } else {
-            return new Date(b.created_at) - new Date(a.created_at);
-          }
-        });
-        
-        setPosts(filteredPosts);
+        // Extract unique accounts from the posts
+        const uniqueAccounts = [...new Set(result.data.posts?.map(post => {
+          // Try to get account from different possible field names
+          return post.account || post.username || post.account_username || 'Unknown';
+        }).filter(Boolean) || [])];
+        setAccounts(uniqueAccounts);
+      } else {
+        console.error('Error loading posts:', result.error);
+        setPosts([]);
+        setAccounts([]);
       }
     } catch (error) {
-      console.error('Failed to load posts:', error);
+      console.error('Error loading posts:', error);
+      setPosts([]);
+      setAccounts([]);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleEditPost = (post) => {
-    setEditingPost({
-      ...post,
-      editedContent: post.content,
-      editedScheduledDate: post.scheduled_date.slice(0, 16) // Format for datetime-local
-    });
-  };
-
-  const handleSaveEdit = async () => {
-    if (!editingPost) return;
-    
-    try {
-      // This would be a new API endpoint for updating posts
-      const result = await queueService.updatePost(editingPost.id, {
-        content: editingPost.editedContent,
-        scheduled_date: editingPost.editedScheduledDate
-      });
-      
-      if (result.success) {
-        setEditingPost(null);
-        loadPosts(); // Refresh the list
-      }
-    } catch (error) {
-      console.error('Failed to update post:', error);
-      alert('Failed to update post');
-    }
-  };
-
-  const handleDeletePost = async (postId) => {
-    if (!window.confirm('Are you sure you want to delete this post?')) {
-      return;
-    }
-    
-    try {
-      const result = await queueService.deletePost(postId);
-      if (result.success) {
-        loadPosts(); // Refresh the list
-      }
-    } catch (error) {
-      console.error('Failed to delete post:', error);
-      alert('Failed to delete post');
-    }
-  };
+  const filteredPosts = posts.filter(post => {
+    const statusMatch = selectedStatus === 'all' || post.status === selectedStatus;
+    const postAccount = post.account || post.username || post.account_username || 'Unknown';
+    const accountMatch = selectedAccount === 'all' || postAccount === selectedAccount;
+    return statusMatch && accountMatch;
+  });
 
   const getStatusColor = (status) => {
-    switch (status) {
-      case 'scheduled': return '#007bff';
-      case 'processing': return '#ffc107';
-      case 'uploaded': return '#28a745';
-      case 'failed': return '#dc3545';
-      default: return '#6c757d';
+    const statusType = statusTypes.find(s => s.key === status);
+    return statusType ? statusType.color : '#6b7280';
+  };
+
+  const handleDeleteAll = async () => {
+    if (deleteStatuses.length === 0) return;
+    
+    try {
+      setLoading(true);
+      const result = await queueService.deleteAllPosts(deleteStatuses);
+      
+      if (result.success) {
+        await loadPosts();
+        setShowDeleteModal(false);
+        setDeleteStatuses([]);
+      } else {
+        console.error('Error deleting posts:', result.error);
+        alert('Error deleting posts: ' + result.error);
+      }
+    } catch (error) {
+      console.error('Error deleting posts:', error);
+      alert('Error deleting posts: ' + error.message);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const formatDate = (dateString) => {
-    const date = new Date(dateString);
-    return date.toLocaleString();
+  const getPostCounts = () => {
+    const counts = {};
+    statusTypes.forEach(status => {
+      if (status.key === 'all') {
+        counts[status.key] = posts.length;
+      } else {
+        counts[status.key] = posts.filter(post => post.status === status.key).length;
+      }
+    });
+    return counts;
   };
 
-  const isPostEditable = (post) => {
-    return post.status === 'scheduled' && new Date(post.scheduled_date) > new Date();
-  };
+  const postCounts = getPostCounts();
 
   return (
     <div className="content-manager">
-      <h2>Content Manager</h2>
-      
-      {/* Account Selection & Filters */}
-      <div className="manager-controls">
-        <div className="control-group">
-          <label>Account:</label>
-          <select 
-            value={selectedAccount?.id || ''} 
-            onChange={(e) => {
-              const account = accounts.find(acc => acc.id === e.target.value);
-              setSelectedAccount(account);
-            }}
+      <div className="content-manager-header">
+        <h2>Content Manager</h2>
+        <div className="header-actions">
+          <button 
+            className="refresh-btn"
+            onClick={loadPosts}
+            disabled={loading}
           >
-            <option value="">Select an account...</option>
-            {accounts.map(account => (
-              <option key={account.id} value={account.id}>
-                {account.username}
-              </option>
-            ))}
-          </select>
+            🔄 Refresh
+          </button>
+          <button 
+            className="delete-all-btn"
+            onClick={() => setShowDeleteModal(true)}
+          >
+            🗑️ Bulk Delete
+          </button>
         </div>
+      </div>
 
-        {selectedAccount && (
-          <>
-            <div className="control-group">
-              <label>Filter:</label>
-              <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}>
-                <option value="all">All Posts</option>
-                <option value="scheduled">Scheduled</option>
-                <option value="processing">Processing</option>
-                <option value="uploaded">Uploaded</option>
-                <option value="failed">Failed</option>
-              </select>
-            </div>
+      {/* Status Filter Cards */}
+      <div className="status-filter-cards">
+        {statusTypes.map(status => (
+          <div
+            key={status.key}
+            className={`status-card ${selectedStatus === status.key ? 'active' : ''}`}
+            onClick={() => setSelectedStatus(status.key)}
+            style={{ '--status-color': status.color }}
+          >
+            <div className="status-label">{status.label}</div>
+            <div className="status-count">{postCounts[status.key] || 0}</div>
+          </div>
+        ))}
+      </div>
 
-            <div className="control-group">
-              <label>Sort by:</label>
-              <select value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
-                <option value="scheduled_date">Scheduled Date</option>
-                <option value="created_at">Created Date</option>
-              </select>
-            </div>
+      {/* Account Filter */}
+      <div className="account-filter">
+        <label>Filter by Account:</label>
+        <select 
+          value={selectedAccount} 
+          onChange={(e) => setSelectedAccount(e.target.value)}
+        >
+          <option value="all">All Accounts ({accounts.length})</option>
+          {accounts.map(account => (
+            <option key={account} value={account}>{account}</option>
+          ))}
+        </select>
+      </div>
 
-            <button onClick={loadPosts} className="refresh-button">
-              🔄 Refresh
-            </button>
-          </>
+      {/* Posts Grid */}
+      <div className="posts-grid">
+        {loading ? (
+          <div className="loading">Loading posts...</div>
+        ) : filteredPosts.length === 0 ? (
+          <div className="no-posts">
+            {posts.length === 0 ? 'No posts found in database' : `No posts match the current filter (${selectedStatus})`}
+            <button onClick={loadPosts} className="retry-btn">🔄 Retry</button>
+          </div>
+        ) : (
+          filteredPosts.map(post => {
+            const postAccount = post.account || post.username || post.account_username || 'Unknown';
+            return (
+              <div key={post.id} className="post-card">
+                <div 
+                  className="post-status"
+                  style={{ backgroundColor: getStatusColor(post.status) }}
+                >
+                  {post.status}
+                </div>
+                
+                <div className="post-content">
+                  <div className="post-title">{post.title || 'Generated Content'}</div>
+                  <div className="post-text">
+                    {post.content ? post.content.substring(0, 150) + '...' : 'No content preview'}
+                  </div>
+                  
+                  <div className="post-meta">
+                    <span className="post-account">📱 {postAccount}</span>
+                    <span className="post-date">
+                      {post.created_at ? new Date(post.created_at).toLocaleDateString() : 'Unknown date'}
+                    </span>
+                  </div>
+                  
+                  {post.scheduled_date && (
+                    <div className="post-scheduled">
+                      ⏰ {new Date(post.scheduled_date).toLocaleString()}
+                    </div>
+                  )}
+
+                  {post.platforms && (
+                    <div className="post-platforms">
+                      📡 {Array.isArray(post.platforms) ? post.platforms.join(', ') : post.platforms}
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })
         )}
       </div>
 
-      {/* Posts List */}
-      {selectedAccount && (
-        <div className="posts-container">
-          {loading ? (
-            <div className="loading">Loading posts...</div>
-          ) : posts.length === 0 ? (
-            <div className="empty-state">
-              <p>No posts found for the selected filters.</p>
-              <p>Generate some content first!</p>
-            </div>
-          ) : (
-            <div className="posts-grid">
-              {posts.map(post => (
-                <PostCard 
-                  key={post.id}
-                  post={post}
-                  onEdit={() => handleEditPost(post)}
-                  onDelete={() => handleDeletePost(post.id)}
-                  isEditable={isPostEditable(post)}
-                  getStatusColor={getStatusColor}
-                  formatDate={formatDate}
-                />
+      {/* Delete Modal */}
+      {showDeleteModal && (
+        <div className="modal-overlay">
+          <div className="delete-modal">
+            <h3>Bulk Delete Posts</h3>
+            <p>Select which post types to delete:</p>
+            
+            <div className="delete-options">
+              {statusTypes.filter(s => s.key !== 'all').map(status => (
+                <label key={status.key} className="delete-option">
+                  <input
+                    type="checkbox"
+                    checked={deleteStatuses.includes(status.key)}
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        setDeleteStatuses([...deleteStatuses, status.key]);
+                      } else {
+                        setDeleteStatuses(deleteStatuses.filter(s => s !== status.key));
+                      }
+                    }}
+                  />
+                  <span style={{ color: status.color }}>
+                    {status.label} ({postCounts[status.key] || 0})
+                  </span>
+                </label>
               ))}
             </div>
-          )}
-        </div>
-      )}
 
-      {/* Edit Modal */}
-      {editingPost && (
-        <EditPostModal 
-          post={editingPost}
-          onSave={handleSaveEdit}
-          onCancel={() => setEditingPost(null)}
-          onChange={(field, value) => setEditingPost(prev => ({
-            ...prev,
-            [field]: value
-          }))}
-        />
-      )}
-    </div>
-  );
-};
-
-// PostCard Component
-const PostCard = ({ post, onEdit, onDelete, isEditable, getStatusColor, formatDate }) => {
-  const isUpcoming = new Date(post.scheduled_date) > new Date();
-  
-  return (
-    <div className={`post-card ${post.status}`}>
-      <div className="post-header">
-        <div className="post-status" style={{ backgroundColor: getStatusColor(post.status) }}>
-          {post.status.toUpperCase()}
-        </div>
-        <div className="post-platforms">
-          {parsePlatforms(post.platforms)}
-        </div>
-      </div>
-
-      <div className="post-content">
-        <p>{post.content.length > 150 ? post.content.substring(0, 147) + '...' : post.content}</p>
-      </div>
-
-      <div className="post-details">
-        <div className="post-date">
-          <strong>Scheduled:</strong> {formatDate(post.scheduled_date)}
-          {isUpcoming && <span className="upcoming-indicator">📅</span>}
-        </div>
-        <div className="post-created">
-          <strong>Created:</strong> {formatDate(post.created_at)}
-        </div>
-      </div>
-
-      <div className="post-actions">
-        {isEditable && (
-          <button onClick={onEdit} className="edit-button">
-            ✏️ Edit
-          </button>
-        )}
-        
-        <button onClick={onDelete} className="delete-button">
-          🗑️ Delete
-        </button>
-        
-        <button 
-          onClick={() => alert('View full content:\n\n' + post.content)} 
-          className="view-button"
-        >
-          👁️ View Full
-        </button>
-      </div>
-    </div>
-  );
-};
-
-// EditPostModal Component
-const EditPostModal = ({ post, onSave, onCancel, onChange }) => {
-  return (
-    <div className="modal-overlay">
-      <div className="edit-modal">
-        <div className="modal-header">
-          <h3>Edit Post</h3>
-          <button onClick={onCancel} className="close-button">✕</button>
-        </div>
-
-        <div className="modal-body">
-          <div className="form-group">
-            <label>Content:</label>
-            <textarea
-              value={post.editedContent}
-              onChange={(e) => onChange('editedContent', e.target.value)}
-              className="content-editor"
-              rows={8}
-            />
-            <div className="character-count">
-              {post.editedContent.length} characters
+            <div className="modal-actions">
+              <button onClick={() => setShowDeleteModal(false)}>Cancel</button>
+              <button 
+                onClick={handleDeleteAll}
+                disabled={deleteStatuses.length === 0}
+                className="delete-confirm-btn"
+              >
+                Delete {deleteStatuses.length > 0 ? `(${deleteStatuses.reduce((sum, status) => sum + (postCounts[status] || 0), 0)} posts)` : ''}
+              </button>
             </div>
           </div>
-
-          <div className="form-group">
-            <label>Scheduled Date & Time:</label>
-            <input
-              type="datetime-local"
-              value={post.editedScheduledDate}
-              onChange={(e) => onChange('editedScheduledDate', e.target.value)}
-              min={new Date().toISOString().slice(0, 16)}
-              className="datetime-input"
-            />
-          </div>
-
-          <div className="post-info">
-            <p><strong>Platforms:</strong> {parsePlatforms(post.platforms)}</p>
-            <p><strong>Original Date:</strong> {new Date(post.scheduled_date).toLocaleString()}</p>
-            <p><strong>Status:</strong> {post.status}</p>
-          </div>
         </div>
-
-        <div className="modal-footer">
-          <button onClick={onCancel} className="cancel-button">
-            Cancel
-          </button>
-          <button onClick={onSave} className="save-button">
-            Save Changes
-          </button>
-        </div>
-      </div>
+      )}
     </div>
   );
 };

@@ -1,4 +1,4 @@
-import { get, post, apiRequest } from '../utils/api';
+import { get, post, put, del, apiRequest } from '../utils/api';
 
 export const queueService = {
   createAccount: (accountData) => post('/queue/create-account', accountData),
@@ -13,6 +13,9 @@ export const queueService = {
   getContexts: () => get('/queue/contexts'),
   updatePost: (postId, updateData) => put(`/queue/update-post/${postId}`, updateData),
   deletePost: (postId) => del(`/queue/delete-post/${postId}`),
+  // Add the new queue management methods
+  getAllPosts: () => get('/queue/posts'),
+  deleteAllPosts: (statuses) => apiRequest('DELETE', '/queue/delete_all', { statuses }),
 };
 
 export const uploadService = {
@@ -23,9 +26,14 @@ export const uploadService = {
 };
 
 export const aiService = {
+  // Update to use the new openrouter endpoints
   grok4Fast: (promptData) => post('/ai/grok4_fast', promptData),
-  generateTitle: (titleData) => post('/ai/generate_title', titleData),
-  generateCaption: (captionData) => post('/ai/generate_caption', captionData),
+};
+
+export const openrouterService = {
+  getModels: () => get('/ai/models'),
+  inference: (data) => post('/ai/inference', data),
+  grok4Fast: (promptData) => post('/ai/grok4_fast', promptData),
 };
 
 export const mediaService = {
@@ -35,7 +43,7 @@ export const mediaService = {
         formData.append('account_id', accountId);
         formData.append('description', description);
 
-        return apiRequest('POST', '/media/upload', formData ,{
+        return apiRequest('POST', '/media/upload', formData, {
             headers: {
                 'Content-Type': 'multipart/form-data'
             },
@@ -51,12 +59,12 @@ export const mediaService = {
 };
 
 export const generatorService = {
-    generateContent: (generationData) => post('generator/generate-content', generationData),
+    generateContent: (generationData) => post('/generator/generate-content', generationData),
     checkPendingPosts: (username = null) =>
         get('/generator/check-pending-posts', username ? { username } : null),
     autoGenerateCheck: (accountUsername) =>
         post('/generator/auto-generate-check', { account_username: accountUsername}),
-}
+};
 
 export const monitorService = {
   startMonitor: () => post('/monitor/start'),
@@ -70,13 +78,14 @@ export const monitorService = {
 export const personalityService = {
   createPersonality: (personalityData) => post('/personality/create', personalityData),
   getPersonalities: () => get('/personality/list'),
-  getPersonality: (filename) => get(`/personality/${filename}`),
+  loadPersonality: (filename) => get(`/personality/load/${filename}`),
   deletePersonality: (filename) => del(`/personality/${filename}`),
 };
 
-// Add the missing HTTP methods if they don't exist:
-const put = (endpoint, data = null, params = null) => 
-  apiRequest('PUT', endpoint, data, {}, params);
 
-const del = (endpoint, params = null) => 
-  apiRequest('DELETE', endpoint, null, {}, params);
+
+// Backward compatibility exports (use the service methods)
+export const getModels = () => openrouterService.getModels();
+export const inference = (data) => openrouterService.inference(data);
+export const deleteAllPosts = (statuses) => queueService.deleteAllPosts(statuses);
+export const getAllPosts = () => queueService.getAllPosts();
