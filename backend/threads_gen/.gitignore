@@ -1,6 +1,10 @@
 # Environment variables
 .env
 
+#data
+.data
+
+
 #context
 .context/*.txt
 
