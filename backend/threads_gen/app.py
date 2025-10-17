@@ -2,9 +2,13 @@ import os
 from dotenv import load_dotenv
 from flask import Flask
 from flask_cors import CORS
+import os
 
 # Load environment variables
 load_dotenv()
+
+global dir_path
+dir_path = os.path.dirname(os.path.realpath(__file__))
 
 def create_app():
     app = Flask(__name__)

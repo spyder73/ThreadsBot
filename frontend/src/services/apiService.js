@@ -80,6 +80,7 @@ export const personalityService = {
   getPersonalities: () => get('/personality/list'),
   loadPersonality: (filename) => get(`/personality/load/${filename}`),
   deletePersonality: (filename) => del(`/personality/${filename}`),
+  addQualityExample: (qualityData) => post('/personality/add-quality-example', qualityData),
 };
 
 

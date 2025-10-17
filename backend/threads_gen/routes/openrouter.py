@@ -3,6 +3,7 @@ import requests
 import json
 from flask import Blueprint, request, jsonify
 from dotenv import load_dotenv
+from app import dir_path
 
 # Load environment variables
 load_dotenv()
@@ -21,7 +22,7 @@ def load_context(context_file):
     if not context_file:
         return None
     
-    context_path = os.path.join('context', context_file)
+    context_path = os.path.join(dir_path, 'context', context_file)
     if os.path.exists(context_path):
         with open(context_path, 'r', encoding='utf-8') as f:
             return f.read()
@@ -154,7 +155,7 @@ def inference():
         if response.status_code == 200:
             result = response.json()
             content = result['choices'][0]['message']['content']
-            return jsonify({'success': True, 'content': content, 'model_used': model})
+            return jsonify({'success': True, 'content': content, 'model_used': model, 'payload': payload})
         else:
             return jsonify({
                 'error': 'Failed to get response from OpenRouter', 

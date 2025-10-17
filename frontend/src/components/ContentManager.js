@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { queueService } from '../services/apiService';
+import QualityControl from './QualityControl';
 import '../ContentManager.css';
 
 const ContentManager = () => {
@@ -101,6 +102,35 @@ const ContentManager = () => {
 
   const postCounts = getPostCounts();
 
+  const handleDragStart = (e, post) => {
+    e.dataTransfer.setData('application/json', JSON.stringify(post));
+    e.currentTarget.classList.add('dragging');
+  };
+
+  const handleDragEnd = (e) => {
+    e.currentTarget.classList.remove('dragging');
+  };
+
+  const handleQualityAssessed = async (quality, assessmentData) => {
+    try {
+      // If marked as bad, also delete from schedule
+      if (quality === 'bad' && assessmentData.post_id) {
+        const deleteResult = await queueService.deletePost(assessmentData.post_id);
+        if (deleteResult.success) {
+          // Remove from local state
+          setPosts(prev => prev.filter(post => post.id !== assessmentData.post_id));
+          console.log('Post deleted from schedule due to bad quality assessment');
+        }
+      }
+      
+      // Reload posts to reflect any changes
+      await loadPosts();
+      
+    } catch (error) {
+      console.error('Error handling quality assessment:', error);
+    }
+  };
+
   return (
     <div className="content-manager">
       <div className="content-manager-header">
@@ -121,6 +151,12 @@ const ContentManager = () => {
           </button>
         </div>
       </div>
+
+      {/* Quality Control Component */}
+      <QualityControl
+        mode="dragdrop"
+        onQualityAssessed={handleQualityAssessed}
+      />
 
       {/* Status Filter Cards */}
       <div className="status-filter-cards">
@@ -164,7 +200,13 @@ const ContentManager = () => {
           filteredPosts.map(post => {
             const postAccount = post.account || post.username || post.account_username || 'Unknown';
             return (
-              <div key={post.id} className="post-card">
+              <div 
+                key={post.id} 
+                className="post-card draggable"
+                draggable={true}
+                onDragStart={(e) => handleDragStart(e, post)}
+                onDragEnd={handleDragEnd}
+              >
                 <div 
                   className="post-status"
                   style={{ backgroundColor: getStatusColor(post.status) }}

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { openrouterService, personalityService } from '../services/apiService';
+import QualityControl from './QualityControl';
 
 const AITester = () => {
   const [models, setModels] = useState([]);
@@ -99,6 +100,11 @@ const AITester = () => {
     }
   };
 
+  const handleQualityAssessed = (quality, assessmentData) => {
+    console.log(`Response assessed as ${quality}:`, assessmentData);
+    // Optionally show a success message or update UI
+  };
+
   return (
     <div className="ai-tester">
       <h2>🤖 AI Model Tester</h2>
@@ -159,6 +165,16 @@ const AITester = () => {
           <div className="response-content">
             <pre>{response}</pre>
           </div>
+          
+          {/* Quality Control Component */}
+          <QualityControl
+            mode="inline"
+            contextFile={selectedContext}
+            response={response}
+            prompt={prompt}
+            model={selectedModel}
+            onQualityAssessed={handleQualityAssessed}
+          />
         </div>
       )}
     </div>

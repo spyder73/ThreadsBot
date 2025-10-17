@@ -334,6 +334,89 @@ def load_personality(filename):
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+    
+# Add this route to your existing personality.py
+
+@personality_bp.route('/add-quality-example', methods=['POST'])
+def add_quality_example():
+    """Add a quality example (good/bad) to a personality context file"""
+    try:
+        data = request.json
+        
+        context_file = data.get('context_file')
+        quality = data.get('quality')  # 'good' or 'bad'
+        content = data.get('content')
+        prompt = data.get('prompt')
+        model = data.get('model')
+        timestamp = data.get('timestamp')
+        
+        if not context_file or not quality or not content:
+            return jsonify({'error': 'context_file, quality, and content are required'}), 400
+        
+        if quality not in ['good', 'bad']:
+            return jsonify({'error': 'quality must be "good" or "bad"'}), 400
+        
+        # Load existing context file
+        context_dir = os.path.join(os.path.dirname(__file__), '..', 'context')
+        file_path = os.path.join(context_dir, context_file)
+        
+        if not os.path.exists(file_path):
+            return jsonify({'error': 'Context file not found'}), 404
+        
+        # Read existing content
+        with open(file_path, 'r', encoding='utf-8') as f:
+            existing_content = f.read()
+        
+        # Prepare the new example
+        example_header = f"\n## QUALITY EXAMPLES - {quality.upper()}\n" if f"QUALITY EXAMPLES - {quality.upper()}" not in existing_content else ""
+        
+        example_content = f"""
+### {quality.upper()} EXAMPLE ({timestamp or datetime.now().strftime('%Y-%m-%d %H:%M:%S')})
+Model: {model or 'Unknown'}
+Prompt: {prompt or 'Not provided'}
+Response:
+{content}
+---
+"""
+        
+        # Find the right place to insert the example
+        lines = existing_content.split('\n')
+        
+        # Look for existing quality examples section
+        quality_section_start = -1
+        for i, line in enumerate(lines):
+            if f"QUALITY EXAMPLES - {quality.upper()}" in line:
+                quality_section_start = i
+                break
+        
+        if quality_section_start == -1:
+            # Add new section at the end
+            new_content = existing_content + example_header + example_content
+        else:
+            # Insert at the end of the existing section
+            # Find the next main section or end of file
+            insert_position = len(lines)
+            for i in range(quality_section_start + 1, len(lines)):
+                if lines[i].startswith('##') and 'QUALITY EXAMPLES' not in lines[i]:
+                    insert_position = i
+                    break
+            
+            # Insert the new example
+            lines.insert(insert_position, example_content.strip())
+            new_content = '\n'.join(lines)
+        
+        # Write back to file
+        with open(file_path, 'w', encoding='utf-8') as f:
+            f.write(new_content)
+        
+        return jsonify({
+            'success': True,
+            'message': f'Quality example ({quality}) added to {context_file}',
+            'filename': context_file
+        })
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 
 def parse_personality_file(content):

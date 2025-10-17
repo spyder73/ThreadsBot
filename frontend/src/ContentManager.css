@@ -227,3 +227,20 @@
   font-style: italic;
   grid-column: 1 / -1;
 }
+
+
+.post-card.draggable {
+  cursor: grab;
+  transition: all 0.2s;
+}
+
+.post-card.draggable:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.post-card.dragging {
+  opacity: 0.5;
+  transform: rotate(2deg) scale(0.95);
+  cursor: grabbing;
+}
