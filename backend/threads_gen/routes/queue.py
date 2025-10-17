@@ -294,7 +294,7 @@ def get_posts():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-@queue_bp.route('/delete_all', methods=['DELETE'])
+@queue_bp.route('/delete_all', methods=['DELETE', 'POST'])
 def delete_all_posts():
     """Delete all posts by status"""
     try:
@@ -308,7 +308,7 @@ def delete_all_posts():
         
         deleted_count = 0
         for status in statuses:
-            result = conn.execute('DELETE FROM posts WHERE status = ?', (status,))
+            result = conn.execute('DELETE FROM scheduled_posts WHERE status = ?', (status,))
             deleted_count += result.rowcount
         
         conn.commit()

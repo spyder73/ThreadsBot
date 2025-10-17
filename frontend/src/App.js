@@ -43,7 +43,7 @@ function App() {
   return (
     <div className="App">
       <header className="App-header">
-        <h1>Social Media Scheduler</h1>
+        <h1>Spyder Thread's Generator</h1>
         <nav className="tab-nav">
           {tabs.map((tab) => (
             <button

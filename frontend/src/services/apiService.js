@@ -15,7 +15,7 @@ export const queueService = {
   deletePost: (postId) => del(`/queue/delete-post/${postId}`),
   // Add the new queue management methods
   getAllPosts: () => get('/queue/posts'),
-  deleteAllPosts: (statuses) => apiRequest('DELETE', '/queue/delete_all', { statuses }),
+  deleteAllPosts: (statuses) => apiRequest('POST', '/queue/delete_all', { statuses }),
 };
 
 export const uploadService = {
