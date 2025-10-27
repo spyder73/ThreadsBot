@@ -211,11 +211,11 @@ const PersonalityCreator = () => {
 
       if (result.success) {
         try {
-          const enhancedPersonality = JSON.parse(result.data.content);
+          const enhancedPersonality = JSON.parse(result.data.content_json);
           setEnhancedData(enhancedPersonality);
           setShowEnhancedPreview(true);
         } catch (parseError) {
-          alert('Enhancement completed but response format was unexpected. Check console for details.');
+          alert('Enhancement completed but response format was unexpected. Check console for details.\n' + parseError);
           console.log('Enhanced personality (raw):', result.data.content);
         }
       } else {
